@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.4] - 2026-02-07
+
+### Added
+- Gateway RPC methods (`src/rpc.ts`) via `api.registerGatewayMethod`
+- Methods: `voicecall.initiate`, `voicecall.continue`, `voicecall.speak`, `voicecall.end`, `voicecall.status`
+- Each handler parses params, calls AsteriskApiClient, and responds with ok/error
+- Wired RPC registration into `index.ts` register() function
+
 ## [0.1.3] - 2026-02-07
 
 ### Added
