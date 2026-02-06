@@ -12,6 +12,7 @@ import {
   type VoiceCallFreepbxConfig,
 } from "./src/config.js";
 import { setVoiceCallRuntime } from "./src/runtime.js";
+import { registerVoiceCallTool } from "./src/tool.js";
 
 const voiceCallConfigSchema = {
   parse(value: unknown): VoiceCallFreepbxConfig {
@@ -33,6 +34,9 @@ const plugin = {
     setVoiceCallRuntime(api.runtime);
 
     const config = voiceCallConfigSchema.parse(api.pluginConfig);
+
+    // Register voice_call tool for LLM agent use
+    registerVoiceCallTool(api, config);
 
     api.logger.info(
       `[voice-call-freepbx] Plugin registered — asterisk-api at ${config.asteriskApiUrl}`,
