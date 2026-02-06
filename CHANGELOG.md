@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2] - 2026-02-07
+
+### Added
+- Voice call tool registration (`src/tool.ts`) with `voice_call` tool for LLM agent use
+- Tool actions: `initiate_call`, `continue_call`, `speak_to_user`, `end_call`, `get_status`
+- TypeBox parameter schema matching moltbot voice-call pattern
+- Wired tool registration into `index.ts` register() function
+- Added `@sinclair/typebox` dependency
+
 ## [0.1.1] - 2026-02-07
 
 ### Added
