@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3] - 2026-02-07
+
+### Added
+- CLI commands (`src/cli.ts`) under `voicecall` namespace via `api.registerCli`
+- Commands: `voicecall call`, `voicecall status`, `voicecall end`, `voicecall speak`, `voicecall list`, `voicecall health`
+- Each command creates an AsteriskApiClient and outputs formatted JSON
+- Wired CLI registration into `index.ts` register() function
+
 ## [0.1.2] - 2026-02-07
 
 ### Added
