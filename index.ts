@@ -14,6 +14,7 @@ import {
 import { setVoiceCallRuntime } from "./src/runtime.js";
 import { registerVoiceCallTool } from "./src/tool.js";
 import { registerVoiceCallCli } from "./src/cli.js";
+import { registerVoiceCallRpc } from "./src/rpc.js";
 
 const voiceCallConfigSchema = {
   parse(value: unknown): VoiceCallFreepbxConfig {
@@ -45,6 +46,9 @@ const plugin = {
         registerVoiceCallCli({ program, config, logger: api.logger }),
       { commands: ["voicecall"] },
     );
+
+    // Register Gateway RPC methods (voicecall.*)
+    registerVoiceCallRpc(api, config);
 
     api.logger.info(
       `[voice-call-freepbx] Plugin registered — asterisk-api at ${config.asteriskApiUrl}`,
