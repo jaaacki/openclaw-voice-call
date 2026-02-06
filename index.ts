@@ -1,21 +1,43 @@
-// OpenClaw Voice Call Plugin for FreePBX/Asterisk
-// This plugin connects OpenClaw to Asterisk via the asterisk-api bridge service.
-//
-// TODO: Implement following the openclaw-bitrix24 plugin patterns:
-// - Plugin registration with configSchema
-// - Voice call tool (initiate_call, continue_call, speak_to_user, end_call, get_status)
-// - CLI commands (voicecall call, continue, speak, end, status, tail)
-// - Gateway RPC methods (voicecall.initiate, voicecall.continue, etc.)
-// - Webhook handler for asterisk-api callbacks
-// - Call state tracking
-// - TTS integration via api.runtime.tts.textToSpeechTelephony()
+/**
+ * Voice Call FreePBX/Asterisk Plugin - Entry Point
+ * Registers the plugin with OpenClaw
+ *
+ * @module openclaw-voice-call
+ */
 
-export default {
-  id: "voice-call-freepbx",
-  name: "Voice Call (FreePBX/Asterisk)",
-  description: "Voice calling via Asterisk/FreePBX using ARI",
-  configSchema: {},
-  register(api: any) {
-    console.log("[voice-call-freepbx] Plugin registered (stub)");
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
+
+import {
+  VoiceCallFreepbxConfigSchema,
+  type VoiceCallFreepbxConfig,
+} from "./src/config.js";
+import { setVoiceCallRuntime } from "./src/runtime.js";
+
+const voiceCallConfigSchema = {
+  parse(value: unknown): VoiceCallFreepbxConfig {
+    const raw =
+      value && typeof value === "object" && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : {};
+    return VoiceCallFreepbxConfigSchema.parse(raw);
   },
 };
+
+const plugin = {
+  id: "voice-call-freepbx",
+  name: "Voice Call (FreePBX/Asterisk)",
+  description:
+    "Voice calling via Asterisk/FreePBX using ARI and the asterisk-api bridge",
+  configSchema: voiceCallConfigSchema,
+  register(api: OpenClawPluginApi) {
+    setVoiceCallRuntime(api.runtime);
+
+    const config = voiceCallConfigSchema.parse(api.pluginConfig);
+
+    api.logger.info(
+      `[voice-call-freepbx] Plugin registered — asterisk-api at ${config.asteriskApiUrl}`,
+    );
+  },
+};
+
+export default plugin;
