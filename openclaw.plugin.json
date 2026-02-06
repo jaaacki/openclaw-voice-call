@@ -1,0 +1,9 @@
+{
+  "id": "voice-call-freepbx",
+  "name": "Voice Call (FreePBX/Asterisk)",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

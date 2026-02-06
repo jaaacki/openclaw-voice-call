@@ -1,0 +1,31 @@
+{
+  "name": "openclaw-voice-freepbx",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "OpenClaw voice call plugin for Asterisk/FreePBX via ARI",
+  "main": "index.ts",
+  "files": [
+    "index.ts",
+    "src/",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.0"
+  },
+  "peerDependencies": {
+    "openclaw": "^2026.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  },
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
