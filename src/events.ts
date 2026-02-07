@@ -340,16 +340,22 @@ export class VoiceCallEventManager {
   /** Silence duration (ms) after last partial before treating as complete utterance */
   private static readonly UTTERANCE_SILENCE_MS = 1500;
 
+  /** Minimum word count to consider a partial as real speech (filters ASR noise) */
+  private static readonly MIN_UTTERANCE_WORDS = 3;
+
   /**
-   * Handle transcription events with debounce-based utterance detection.
+   * Handle transcription events with noise-aware utterance detection.
    *
    * asterisk-api contract:
    * - is_partial: true → real-time speech segments during the call
    * - is_final: true   → flush at call end only (not after each utterance)
    *
-   * Since is_final never fires mid-conversation, we detect end-of-utterance
-   * by debouncing: when no new non-empty partials arrive for UTTERANCE_SILENCE_MS,
-   * treat the buffered text as a complete utterance.
+   * ASR noise problem: the ASR model sends hallucinated short words ("Okay.",
+   * "The.", "Oh.") during silence at ~800ms intervals, so a simple debounce
+   * never fires. We solve this by:
+   * 1. Only starting the debounce timer when text reaches MIN_UTTERANCE_WORDS
+   * 2. Ignoring short noise partials that don't grow the buffer
+   * 3. Preserving the longest/most substantial text seen
    */
   private async handleTranscription(event: TranscriptionEvent): Promise<void> {
     const { callId } = event;
@@ -378,12 +384,31 @@ export class VoiceCallEventManager {
       return;
     }
 
-    // Partial transcription — buffer non-empty text and reset debounce timer
-    if (text.trim()) {
-      context.partialText = text;
-      this.logger.debug?.(`[EventManager] Partial: ${callId}: ${text.substring(0, 80)}`);
+    // Partial transcription
+    if (!text.trim()) return;
 
-      // Reset the utterance debounce timer
+    const wordCount = text.trim().split(/\s+/).length;
+    const bufferWordCount = context.partialText
+      ? context.partialText.trim().split(/\s+/).length
+      : 0;
+
+    // Filter ASR noise: short partials that don't grow the buffer are hallucinations.
+    // Real speech produces growing partials (word count increases over consecutive events);
+    // noise produces isolated short words that don't build on previous content.
+    if (wordCount < VoiceCallEventManager.MIN_UTTERANCE_WORDS && wordCount <= bufferWordCount) {
+      this.logger.debug?.(`[EventManager] Noise filtered: ${callId}: [${wordCount}w] ${text.substring(0, 40)}`);
+      return;
+    }
+
+    // Update buffer only if new text is at least as long as current buffer
+    if (wordCount >= bufferWordCount) {
+      context.partialText = text;
+    }
+
+    this.logger.debug?.(`[EventManager] Partial: ${callId}: [${wordCount}w] ${text.substring(0, 80)}`);
+
+    // Only start/reset debounce timer when we have substantial text
+    if (wordCount >= VoiceCallEventManager.MIN_UTTERANCE_WORDS) {
       this.clearUtteranceTimer(context);
       context.utteranceTimer = setTimeout(() => {
         const utterance = context.partialText;
