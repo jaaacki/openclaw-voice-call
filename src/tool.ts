@@ -296,9 +296,8 @@ export function registerVoiceCallTool(
             eventManager.enableConversationMode(callId);
             eventManager.setConversationState(callId, "LISTENING");
 
-            // Start recording/transcription via asterisk-api
-            // The asterisk-api should automatically start sending transcription events
-            await client.startRecording(callId, { format: "wav", beep: false });
+            // Start live audio capture + ASR transcription pipeline
+            await client.startAudioCapture(callId);
 
             return json({
               callId,
@@ -318,17 +317,17 @@ export function registerVoiceCallTool(
               return json({ error: `Call ${callId} not found in active calls` });
             }
 
+            // Stop live audio capture + ASR pipeline
+            await client.stopAudioCapture(callId);
+
             // Transition to IDLE
             eventManager.setConversationState(callId, "IDLE");
-
-            // Note: We don't have a stop recording endpoint yet in the client
-            // This would need to be added to the asterisk-api and client if needed
 
             return json({
               callId,
               success: true,
               state: "IDLE",
-              message: "Listening stopped",
+              message: "Audio capture and transcription stopped",
             });
           }
 
