@@ -88,11 +88,18 @@ export function registerVoiceCallTool(
             const to = String(params.to || "").trim();
             if (!to) throw new Error("to (phone number) required");
 
-            // Build endpoint from phone number
-            // Format: PJSIP/trunk-name/number or use defaultEndpoint pattern
-            const endpoint = config.defaultEndpoint.includes("/")
-              ? `${config.defaultEndpoint}/${to}`
-              : `PJSIP/${to}`;
+            // Build endpoint from phone number using outboundTrunk pattern or defaultEndpoint
+            let endpoint: string;
+            if (config.outboundTrunk) {
+              // Use trunk pattern with {number} placeholder
+              endpoint = config.outboundTrunk.replace("{number}", to);
+            } else if (config.defaultEndpoint.includes("/")) {
+              // Append number to default endpoint
+              endpoint = `${config.defaultEndpoint}/${to}`;
+            } else {
+              // Fallback: PJSIP/number
+              endpoint = `PJSIP/${to}`;
+            }
 
             const result = await client.originate(endpoint, config.fromNumber);
 

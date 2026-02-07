@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.8] - 2026-02-07
+
+### Added
+- `outboundTrunk` config option for trunk pattern with `{number}` placeholder
+- `README.md` with full setup and usage documentation
+- `TESTS.md` with comprehensive test checklist
+
+### Changed
+- `initiate_call` now uses `outboundTrunk` pattern if configured
+- Better endpoint construction logic: trunk pattern → defaultEndpoint append → fallback
+
 ## [0.1.7] - 2026-02-07
 
 ### Added
