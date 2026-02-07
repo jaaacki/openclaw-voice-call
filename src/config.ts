@@ -25,6 +25,16 @@ export const VoiceCallFreepbxConfigSchema = z.object({
   /** Default SIP endpoint for originating calls (e.g. "PJSIP/101") */
   defaultEndpoint: z.string().default("PJSIP/101"),
 
+  /**
+   * Outbound trunk pattern for external calls.
+   * Use {number} as placeholder for the phone number.
+   * Examples:
+   *   - "PJSIP/{number}@trunk-name" (most common)
+   *   - "PJSIP/trunk-name/{number}"
+   *   - "SIP/{number}@provider"
+   */
+  outboundTrunk: z.string().optional(),
+
   /** Inbound call policy */
   inboundPolicy: z.enum(["disabled", "allowlist"]).default("disabled"),
 
