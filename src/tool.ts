@@ -19,7 +19,7 @@ import type { VoiceCallFreepbxConfig } from "./config.js";
 const VoiceCallToolSchema = Type.Union([
   Type.Object({
     action: Type.Literal("initiate_call"),
-    to: Type.String({ description: "Phone number to call (e.g. 659654255)" }),
+    to: Type.String({ description: "Phone number to call (e.g. 6596542555)" }),
     message: Type.Optional(
       Type.String({ description: "Intro message to speak when call connects" }),
     ),

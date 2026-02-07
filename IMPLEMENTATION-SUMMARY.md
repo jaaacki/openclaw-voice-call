@@ -148,7 +148,7 @@ Complete conversation loop implementation enabling real-time voice conversations
 - asterisk-api v0.2.1+ with transcription support
 - TTS API running at http://192.168.2.198:8101
 - FreePBX/Asterisk configured
-- Test phone number (e.g., 659654255)
+- Test phone number (e.g., 6596542555)
 
 ## Architecture Diagram
 
@@ -281,7 +281,7 @@ User speaks → Transcription (partial) → Buffer
 
 # 2. Quick smoke test
 cd ~/Dev/openclaw-freepbx/openclaw-voice-call
-openclaw tool voice_call '{"action": "initiate_call", "to": "659654255"}'
+openclaw tool voice_call '{"action": "initiate_call", "to": "6596542555"}'
 # Note the callId
 
 openclaw tool voice_call '{

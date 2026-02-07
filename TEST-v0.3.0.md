@@ -6,7 +6,7 @@
 - [ ] TTS API running at http://192.168.2.198:8101
 - [ ] FreePBX/Asterisk configured and reachable
 - [ ] OpenClaw plugin loaded: `openclaw plugin list`
-- [ ] Test phone available (e.g., 659654255)
+- [ ] Test phone available (e.g., 6596542555)
 
 ## Test 1: Basic TTS Playback (No Transcription)
 
@@ -16,7 +16,7 @@
 # Step 1: Initiate call
 openclaw tool voice_call '{
   "action": "initiate_call",
-  "to": "659654255",
+  "to": "6596542555",
   "mode": "notify"
 }'
 
@@ -64,7 +64,7 @@ openclaw tool voice_call '{
 # Step 1: Initiate call
 openclaw tool voice_call '{
   "action": "initiate_call",
-  "to": "659654255",
+  "to": "6596542555",
   "mode": "conversation"
 }'
 
@@ -109,7 +109,7 @@ openclaw tool voice_call '{
 # Step 1: Initiate call with conversation mode
 openclaw tool voice_call '{
   "action": "initiate_call",
-  "to": "659654255",
+  "to": "6596542555",
   "mode": "conversation"
 }'
 
@@ -155,7 +155,7 @@ openclaw tool voice_call '{
 
 ```bash
 # Step 1: Start call and listening
-openclaw tool voice_call '{"action": "initiate_call", "to": "659654255"}'
+openclaw tool voice_call '{"action": "initiate_call", "to": "6596542555"}'
 openclaw tool voice_call '{"action": "start_listening", "callId": "YOUR_CALL_ID"}'
 
 # Step 2: While speaking, try to speak (should queue or ignore)
@@ -240,7 +240,7 @@ openclaw tool voice_call '{
 ls -lh /tmp/tts-*
 
 # Step 2: Run conversation
-openclaw tool voice_call '{"action": "initiate_call", "to": "659654255"}'
+openclaw tool voice_call '{"action": "initiate_call", "to": "6596542555"}'
 openclaw tool voice_call '{"action": "start_listening", "callId": "CALL_ID"}'
 # Speak several times
 
@@ -289,7 +289,7 @@ openclaw tool voice_call '{"action": "list_calls"}'
 tail -f ~/.openclaw/logs/openclaw.log | grep voice-call-freepbx
 
 # Step 3: Initiate call
-openclaw tool voice_call '{"action": "initiate_call", "to": "659654255"}'
+openclaw tool voice_call '{"action": "initiate_call", "to": "6596542555"}'
 
 # Expected log sequence:
 # - call.created event

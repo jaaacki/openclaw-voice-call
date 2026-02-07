@@ -95,7 +95,7 @@ The `outboundTrunk` config specifies how to dial external numbers:
 The agent can use the `voice_call` tool:
 
 ```
-Call 659654255 and tell them about the meeting tomorrow.
+Call 6596542555 and tell them about the meeting tomorrow.
 ```
 
 ### CLI Commands
@@ -108,7 +108,7 @@ openclaw voicecall health
 openclaw voicecall list
 
 # Initiate a call
-openclaw voicecall call --to 659654255
+openclaw voicecall call --to 6596542555
 
 # Speak text into active call (server-side TTS)
 openclaw voicecall speak --call-id <id> --message "Hello, how are you?"
@@ -148,8 +148,8 @@ The allowlist is managed at the **asterisk-api** level, not in this plugin.
 Edit `asterisk-api/allowlist.json`:
 ```json
 {
-  "inbound": ["659654255"],
-  "outbound": ["659654255"]
+  "inbound": ["6596542555"],
+  "outbound": ["6596542555"]
 }
 ```
 
@@ -168,7 +168,7 @@ curl http://localhost:3456/health
 openclaw status
 
 # 3. Initiate test call
-openclaw voicecall call --to 659654255
+openclaw voicecall call --to 6596542555
 ```
 
 ## Roadmap
