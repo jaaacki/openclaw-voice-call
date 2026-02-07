@@ -4,12 +4,14 @@ Voice calling via Asterisk/FreePBX using ARI and the asterisk-api bridge.
 
 ## Features
 
-- 📞 **Outbound calls** — Initiate calls to phone numbers via OpenClaw agent
-- 🔌 **WebSocket events** — Real-time call state via asterisk-api `/events`
-- 🛡️ **Allowlist** — Restrict calls to approved numbers (at asterisk-api level)
-- 🎯 **LLM tool** — `voice_call` tool for agent use
-- 🖥️ **CLI commands** — `voicecall call`, `voicecall list`, etc.
-- 🔗 **RPC methods** — `voicecall.initiate`, `voicecall.status`, etc.
+- **Outbound calls** — Initiate calls to phone numbers via OpenClaw agent
+- **Server-side TTS** — Text-to-speech via asterisk-api `POST /calls/:id/speak` (Qwen3-TTS)
+- **Conversation loop** — Transcription -> agent -> TTS -> playback cycle
+- **WebSocket events** — Real-time call state via asterisk-api `/events`
+- **Allowlist** — Restrict calls to approved numbers (at asterisk-api level)
+- **LLM tool** — `voice_call` tool for agent use
+- **CLI commands** — `voicecall call`, `voicecall speak`, `voicecall list`, etc.
+- **RPC methods** — `voicecall.initiate`, `voicecall.speak`, `voicecall.status`, etc.
 
 ## Architecture
 
@@ -28,7 +30,7 @@ PSTN / Phone
 ## Prerequisites
 
 1. **FreePBX/Asterisk** with ARI enabled
-2. **asterisk-api** bridge service running ([jaaacki/asterisk-api](https://github.com/jaaacki/asterisk-api))
+2. **asterisk-api v0.3.0+** bridge service running ([jaaacki/asterisk-api](https://github.com/jaaacki/asterisk-api)) — includes server-side TTS
 3. **OpenClaw** installed
 
 ## Installation
@@ -73,6 +75,8 @@ PSTN / Phone
 | `inboundPolicy` | No | `disabled` or `allowlist` (default: `disabled`) |
 | `allowFrom` | No | Array of allowed inbound caller IDs |
 
+> **Note:** TTS configuration (`ttsApiUrl`, voice, language) is managed on the **asterisk-api** side, not in this plugin. See asterisk-api `.env` for `TTS_URL`, `TTS_DEFAULT_VOICE`, etc.
+
 ### Outbound Trunk Pattern
 
 The `outboundTrunk` config specifies how to dial external numbers:
@@ -106,6 +110,10 @@ openclaw voicecall list
 # Initiate a call
 openclaw voicecall call --to 659654255
 
+# Speak text into active call (server-side TTS)
+openclaw voicecall speak --call-id <id> --message "Hello, how are you?"
+openclaw voicecall speak --call-id <id> --message "Bonjour" --voice serena --language French
+
 # Get call status
 openclaw voicecall status --call-id <id>
 
@@ -118,11 +126,20 @@ openclaw voicecall end --call-id <id>
 | Action | Parameters | Description |
 |--------|------------|-------------|
 | `initiate_call` | `to`, `message?`, `mode?` | Start outbound call |
-| `speak_to_user` | `callId`, `message` | Play audio (TTS placeholder) |
-| `continue_call` | `callId`, `message` | Continue conversation |
+| `speak` | `callId`, `text`, `voice?` | Speak text via server-side TTS (Qwen3-TTS) |
+| `speak_to_user` | `callId`, `message` | Speak message to caller via TTS |
+| `continue_call` | `callId`, `message` | Continue conversation via TTS |
+| `start_listening` | `callId` | Start audio capture + ASR transcription |
+| `stop_listening` | `callId` | Stop audio capture + ASR |
 | `end_call` | `callId` | Hang up |
 | `get_status` | `callId` | Get call state |
 | `list_calls` | — | List all active calls |
+
+### Available TTS Voices
+
+Voices are provided by Qwen3-TTS on the asterisk-api server:
+
+`vivian` (default), `serena`, `uncle_fu`, `dylan`, `eric`, `ryan`, `aiden`, `ono_anna`, `sohee`
 
 ## Allowlist
 
@@ -157,10 +174,11 @@ openclaw voicecall call --to 659654255
 ## Roadmap
 
 - [x] V1: Outbound calls via REST + WebSocket events
-- [ ] V2: Inbound call handling
-- [ ] V2: Streaming TTS (qwen3-tts)
-- [ ] V2: Streaming STT (qwen3-asr)
-- [ ] V2: Real-time duplex conversation
+- [x] V2: Conversation loop (transcription -> agent -> TTS -> playback)
+- [x] V2: Server-side TTS via Qwen3-TTS
+- [x] V2: Live ASR via audio capture pipeline
+- [ ] V3: Inbound call handling
+- [ ] V3: Real-time duplex conversation (barge-in support)
 
 ## License
 
