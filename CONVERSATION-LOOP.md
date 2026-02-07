@@ -230,7 +230,7 @@ onTranscriptionFinal: async (callId, text, context) => {
 
 1. **Initiate Call:**
 ```bash
-openclaw voicecall call --to 659654255
+openclaw voicecall call --to 6596542555
 # Note the callId from response
 ```
 
@@ -269,7 +269,7 @@ openclaw tool voice_call '{"action": "end_call", "callId": "YOUR_CALL_ID"}'
 ### Expected Log Output
 
 ```
-[voice-call-freepbx] Call initiated to 659654255: abc123
+[voice-call-freepbx] Call initiated to 6596542555: abc123
 [EventManager] Connected to asterisk-api events
 [EventManager] Conversation mode enabled for abc123
 [EventManager] Call abc123 state: LISTENING

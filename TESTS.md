@@ -8,7 +8,7 @@
 | FreePBX/Asterisk connected | ⬜ | ARI WebSocket active |
 | Plugin loaded in OpenClaw | ⬜ | Check `openclaw status` |
 | WebSocket connected | ⬜ | Check logs for "Connected to asterisk-api events" |
-| Allowlist configured | ⬜ | `659654255` in asterisk-api `allowlist.json` |
+| Allowlist configured | ⬜ | `6596542555` in asterisk-api `allowlist.json` |
 | Qwen3-TTS model loaded | ⬜ | First speak may take 10-20s if model is idle |
 
 ## Configuration
@@ -46,7 +46,7 @@ Plugin config in `~/.openclaw/openclaw.json` under `extensions.voice-call-freepb
 
 | Test | Command | Expected | Status |
 |------|---------|----------|--------|
-| Call to allowed number | `voice_call { action: "initiate_call", to: "659654255" }` | Call initiated, callId returned | ⬜ |
+| Call to allowed number | `voice_call { action: "initiate_call", to: "6596542555" }` | Call initiated, callId returned | ⬜ |
 | Call to blocked number | `voice_call { action: "initiate_call", to: "999999999" }` | 403 blocked by allowlist | ⬜ |
 | Phone rings | — | Target phone receives call | ⬜ |
 | Call state tracked | `voice_call { action: "list_calls" }` | Shows active call | ⬜ |
@@ -112,7 +112,7 @@ openclaw voicecall health
 openclaw voicecall list
 
 # 3. Initiate call to test number
-openclaw voicecall call --to 659654255
+openclaw voicecall call --to 6596542555
 
 # 4. Wait for answer, then speak
 # openclaw voicecall speak --call-id <id> --message "Hello, this is a test"
