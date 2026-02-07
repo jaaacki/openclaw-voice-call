@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.5] - 2026-02-07
+
+### Added
+- WebSocket client in `AsteriskApiClient` for real-time event streaming
+- `connectEvents(options)` — connect to asterisk-api `/events` WebSocket
+- `disconnectEvents()` — close WebSocket connection
+- `isEventsConnected()` — check connection status
+- Auto-reconnect with configurable delay (default 3s)
+- Event types: `snapshot`, `call.created`, `call.state_changed`, `call.ready`, `call.ended`, etc.
+- `EventConnectionOptions` interface with callbacks: `onConnect`, `onDisconnect`, `onError`, `onEvent`, `onSnapshot`
+
+### Changed
+- Updated `types.ts` with full event type definitions from asterisk-api
+
 ## [0.1.4] - 2026-02-07
 
 ### Added

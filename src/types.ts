@@ -102,19 +102,55 @@ export interface ListCallsResponse {
 // ---------------------------------------------------------------------------
 
 export type AsteriskEventType =
-  | "call.started"
-  | "call.ringing"
-  | "call.answered"
-  | "call.ended"
+  | "snapshot"
+  | "call.created"
+  | "call.state_changed"
+  | "call.ready"
   | "call.dtmf"
-  | "playback.started"
-  | "playback.finished"
-  | "recording.started"
-  | "recording.finished";
+  | "call.playback_finished"
+  | "call.recording_finished"
+  | "call.ended"
+  | "call.inbound"
+  | "call.answered"
+  | "bridge.created"
+  | "bridge.destroyed";
 
 export interface AsteriskEvent {
   type: AsteriskEventType;
-  callId: string;
+  callId?: string;
   timestamp: string;
-  data?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface SnapshotEvent {
+  type: "snapshot";
+  calls: CallStatusResponse[];
+  timestamp: string;
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket connection options
+// ---------------------------------------------------------------------------
+
+export interface EventConnectionOptions {
+  /** Called when connection is established */
+  onConnect?: () => void;
+
+  /** Called when connection is closed */
+  onDisconnect?: (code: number, reason: string) => void;
+
+  /** Called on connection error */
+  onError?: (error: Error) => void;
+
+  /** Called when an event is received */
+  onEvent?: (event: AsteriskEvent) => void;
+
+  /** Called on initial snapshot */
+  onSnapshot?: (snapshot: SnapshotEvent) => void;
+
+  /** Auto-reconnect on disconnect (default: true) */
+  autoReconnect?: boolean;
+
+  /** Reconnect delay in ms (default: 3000) */
+  reconnectDelay?: number;
 }
