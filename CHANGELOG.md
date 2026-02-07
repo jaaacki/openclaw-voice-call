@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.5] - 2026-02-07
+
+### Summary
+Signal upstream when a call ends. The `onCallEnded` callback fires BEFORE conversation context cleanup, so the gateway receives full call metadata including conversation history and state.
+
+### Added
+- `onCallEnded` callback in `EventManagerOptions` — fires on `call.ended` with callId and conversation context
+- Structured log on call end: conversation turn count, last state, full history (JSON)
+
+### Changed
+- `call.ended` handler now signals upstream before cleanup (context was previously destroyed before dispatch)
+
 ## [0.4.4] - 2026-02-07
 
 ### Summary
