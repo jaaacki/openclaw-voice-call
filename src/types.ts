@@ -93,6 +93,14 @@ export interface DtmfResponse {
   status: string;
 }
 
+export interface SpeakResponse {
+  status: string;
+  text: string;
+  voice: string;
+  language: string;
+  durationSeconds?: number;
+}
+
 export interface ListCallsResponse {
   calls: CallStatusResponse[];
 }
@@ -113,6 +121,9 @@ export type AsteriskEventType =
   | "call.inbound"
   | "call.answered"
   | "call.transcription"
+  | "call.speak_started"
+  | "call.speak_finished"
+  | "call.speak_error"
   | "bridge.created"
   | "bridge.destroyed";
 

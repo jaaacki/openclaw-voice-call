@@ -11,7 +11,6 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 
 import { getEventManager } from "./events.js";
 import type { VoiceCallFreepbxConfig } from "./config.js";
-import { generateSpeech, cleanupAudioFile } from "./tts.js";
 
 // ---------------------------------------------------------------------------
 // Tool parameter schema (TypeBox union, same pattern as moltbot voice-call)
@@ -43,7 +42,7 @@ const VoiceCallToolSchema = Type.Union([
     callId: Type.String({ description: "Call ID" }),
     text: Type.String({ description: "Text to convert to speech and play" }),
     voice: Type.Optional(
-      Type.String({ description: "TTS voice (alloy, echo, fable, onyx, nova, shimmer, etc.)" }),
+      Type.String({ description: "TTS voice (vivian, serena, dylan, eric, ryan, aiden, etc.)" }),
     ),
   }),
   Type.Object({
@@ -150,10 +149,9 @@ export function registerVoiceCallTool(
               return json({ error: `Call ${callId} not found in active calls` });
             }
 
-            // Placeholder: play a sound; full TTS pipeline comes later
-            await client.playMedia(callId, "sound:hello-world");
+            const result = await client.speak(callId, message);
 
-            return json({ callId, success: true, message, callState: call.status });
+            return json({ callId, success: true, message, callState: call.status, durationSeconds: result.durationSeconds });
           }
 
           case "speak_to_user": {
@@ -169,10 +167,9 @@ export function registerVoiceCallTool(
               return json({ error: `Call ${callId} not found in active calls` });
             }
 
-            // Placeholder: play a sound; real TTS integration comes later
-            await client.playMedia(callId, "sound:hello-world");
+            const result = await client.speak(callId, message);
 
-            return json({ callId, success: true, callState: call.status });
+            return json({ callId, success: true, callState: call.status, durationSeconds: result.durationSeconds });
           }
 
           case "end_call": {
@@ -225,61 +222,29 @@ export function registerVoiceCallTool(
               return json({ error: `Call ${callId} not found in active calls` });
             }
 
-            const voice = String(params.voice || "alloy").trim();
+            const voice = String(params.voice || "").trim() || undefined;
 
-            // Transition to SPEAKING state
-            eventManager.setConversationState(callId, "SPEAKING");
+            // Server-side TTS — speak() blocks until playback finishes
+            // State transitions handled by call.speak_started/finished events
+            api.logger.info(`[voice-call-freepbx] Speaking to ${callId}: ${text.substring(0, 50)}...`);
+            const result = await client.speak(callId, text, { voice });
 
-            try {
-              // Generate TTS audio
-              api.logger.info(`[voice-call-freepbx] Generating TTS for ${callId}: ${text.substring(0, 50)}...`);
-              const ttsResult = await generateSpeech({
-                baseUrl: config.ttsApiUrl,
-                text,
-                voice,
-                format: "wav",
-              });
+            // Add to conversation history
+            const context = eventManager.getConversationContext(callId);
+            context.history.push({
+              role: "assistant",
+              content: text,
+              timestamp: new Date().toISOString(),
+            });
 
-              // Play audio to caller
-              api.logger.info(`[voice-call-freepbx] Playing audio to ${callId}: ${ttsResult.audioPath}`);
-              const playResult = await client.playMedia(callId, `sound:${ttsResult.audioPath}`);
-
-              // Clean up audio file after a delay (give it time to play)
-              setTimeout(() => {
-                void cleanupAudioFile(ttsResult.audioPath);
-              }, 60000); // 60 seconds should be enough for most messages
-
-              // Get conversation context
-              const context = eventManager.getConversationContext(callId);
-
-              // Add to conversation history
-              context.history.push({
-                role: "assistant",
-                content: text,
-                timestamp: new Date().toISOString(),
-              });
-
-              // Transition back to LISTENING if in conversation mode, otherwise IDLE
-              const nextState = context.conversationMode ? "LISTENING" : "IDLE";
-              eventManager.setConversationState(callId, nextState);
-
-              return json({
-                callId,
-                success: true,
-                text,
-                voice,
-                audioPath: ttsResult.audioPath,
-                audioSize: ttsResult.size,
-                playbackId: playResult.playbackId,
-                nextState,
-              });
-            } catch (error) {
-              // Reset to previous state on error
-              const context = eventManager.getConversationContext(callId);
-              const nextState = context.conversationMode ? "LISTENING" : "IDLE";
-              eventManager.setConversationState(callId, nextState);
-              throw error;
-            }
+            return json({
+              callId,
+              success: true,
+              text,
+              voice: result.voice,
+              language: result.language,
+              durationSeconds: result.durationSeconds,
+            });
           }
 
           case "start_listening": {

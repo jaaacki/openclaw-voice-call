@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.4.0] - 2026-02-07
+
+### Summary
+Migrate TTS from local file-based workaround to server-side `POST /calls/:id/speak` endpoint (asterisk-api v0.3.0).
+
+### Added
+- `AsteriskApiClient.speak()` — server-side TTS synthesis + playback via `POST /calls/:id/speak`
+- `SpeakResponse` type with text, voice, language, durationSeconds
+- Event handling for `call.speak_started`, `call.speak_finished`, `call.speak_error` WebSocket events
+- Event-driven state transitions (SPEAKING on speak_started, LISTENING/IDLE on speak_finished)
+- CLI `--voice` and `--language` options for `voicecall speak` command
+- Voice parameter support in RPC `voicecall.speak` and `voicecall.continue` methods
+
+### Changed
+- `index.ts` onTranscriptionFinal: uses `client.speak()` instead of local TTS + playMedia
+- Tool `speak` action: uses `client.speak()` instead of `generateSpeech()` + `playMedia()`
+- Tool `continue_call` action: uses `client.speak()` instead of placeholder `playMedia("sound:hello-world")`
+- Tool `speak_to_user` action: uses `client.speak()` instead of placeholder `playMedia("sound:hello-world")`
+- CLI `voicecall speak`: uses `client.speak()` with voice/language options
+- RPC `voicecall.speak` and `voicecall.continue`: use `client.speak()` with voice parameter
+- Default TTS voice updated from `"alloy"` (OpenAI) to Qwen3-TTS voices (`vivian` default)
+- `openclaw.plugin.json`: allow additional properties in config schema
+
+### Removed
+- `src/tts.ts` — local TTS module (`generateSpeech()`, `cleanupAudioFile()`) no longer needed
+- `ttsApiUrl` config field — TTS is now handled server-side by asterisk-api
+
 ## [0.3.1] - 2026-02-07
 
 ### Fixed

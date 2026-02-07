@@ -86,10 +86,12 @@ export function registerVoiceCallRpc(
           return;
         }
 
-        // Placeholder: play a sound; full TTS/conversation pipeline comes later
-        await client.playMedia(callId, "sound:hello-world");
+        const voice =
+          typeof params?.voice === "string" ? params.voice.trim() : undefined;
 
-        respond(true, { callId, success: true, message });
+        const result = await client.speak(callId, message, { voice });
+
+        respond(true, { callId, success: true, message, ...result });
       } catch (err) {
         sendError(respond, err);
       }
@@ -113,10 +115,12 @@ export function registerVoiceCallRpc(
           return;
         }
 
-        // Placeholder: play media; real TTS integration comes later
-        const result = await client.playMedia(callId, "sound:hello-world");
+        const voice =
+          typeof params?.voice === "string" ? params.voice.trim() : undefined;
 
-        respond(true, { callId, success: true, playbackId: result.playbackId });
+        const result = await client.speak(callId, message, { voice });
+
+        respond(true, { callId, success: true, ...result });
       } catch (err) {
         sendError(respond, err);
       }

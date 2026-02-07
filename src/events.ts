@@ -252,6 +252,31 @@ export class VoiceCallEventManager {
         );
         break;
 
+      case "call.speak_started":
+        if (callId) {
+          this.setConversationState(callId, "SPEAKING");
+          this.logger.info(`[EventManager] TTS started on ${callId}`);
+        }
+        break;
+
+      case "call.speak_finished":
+        if (callId) {
+          const ctx = this.getConversationContext(callId);
+          this.setConversationState(callId, ctx.conversationMode ? "LISTENING" : "IDLE");
+          this.logger.info(
+            `[EventManager] TTS finished on ${callId} (${(event.durationSeconds as number)?.toFixed(1) ?? "?"}s)`
+          );
+        }
+        break;
+
+      case "call.speak_error":
+        if (callId) {
+          this.logger.error(`[EventManager] TTS error on ${callId}: ${event.error}`);
+          const ctx = this.getConversationContext(callId);
+          this.setConversationState(callId, ctx.conversationMode ? "LISTENING" : "IDLE");
+        }
+        break;
+
       case "call.playback_finished":
         this.logger.debug?.(
           `[EventManager] Playback finished on ${callId}`
@@ -273,7 +298,8 @@ export class VoiceCallEventManager {
    * Handle transcription events with buffering and finalization
    */
   private async handleTranscription(event: TranscriptionEvent): Promise<void> {
-    const { callId, text, is_final } = event;
+    const { callId, is_final } = event;
+    const text = event.text ?? "";
 
     const context = this.getConversationContext(callId);
 
