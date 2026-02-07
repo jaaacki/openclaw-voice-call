@@ -166,8 +166,11 @@ export interface ConversationContext {
   /** Current conversation state */
   state: ConversationState;
 
-  /** Buffered partial transcription */
+  /** Buffered partial transcription (latest non-empty partial) */
   partialText: string;
+
+  /** Debounce timer for detecting end-of-utterance from partial stream */
+  utteranceTimer?: ReturnType<typeof setTimeout>;
 
   /** Full conversation history */
   history: Array<{ role: "user" | "assistant"; content: string; timestamp: string }>;

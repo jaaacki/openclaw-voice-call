@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.3] - 2026-02-07
+
+### Summary
+Rewrite transcription handler with debounce-based utterance detection. asterisk-api's `is_final` only fires at call end (flush), not after each utterance — so waiting for it breaks the conversation loop. Now detects end-of-utterance by debouncing: when no new speech partials arrive for 1.5s, the buffered text is treated as a complete utterance and triggers agent processing.
+
+### Changed
+- `handleTranscription` now uses a 1.5s debounce timer on partial transcriptions instead of waiting for `is_final`
+- Extracted `processUtterance()` and `clearUtteranceTimer()` helper methods
+- Added `utteranceTimer` to `ConversationContext` type
+- `is_final` events (call-end flush) still processed as fallback for any remaining buffer
+
 ## [0.4.2] - 2026-02-07
 
 ### Summary

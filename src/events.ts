@@ -179,6 +179,10 @@ export class VoiceCallEventManager {
    * Clean up conversation context when call ends
    */
   private cleanupConversation(callId: string): void {
+    const context = this.conversationContexts.get(callId);
+    if (context) {
+      this.clearUtteranceTimer(context);
+    }
     this.conversationContexts.delete(callId);
     this.logger.debug?.(`[EventManager] Cleaned up conversation context for ${callId}`);
   }
@@ -333,8 +337,19 @@ export class VoiceCallEventManager {
     this.onCallEvent?.(event);
   }
 
+  /** Silence duration (ms) after last partial before treating as complete utterance */
+  private static readonly UTTERANCE_SILENCE_MS = 1500;
+
   /**
-   * Handle transcription events with buffering and finalization
+   * Handle transcription events with debounce-based utterance detection.
+   *
+   * asterisk-api contract:
+   * - is_partial: true → real-time speech segments during the call
+   * - is_final: true   → flush at call end only (not after each utterance)
+   *
+   * Since is_final never fires mid-conversation, we detect end-of-utterance
+   * by debouncing: when no new non-empty partials arrive for UTTERANCE_SILENCE_MS,
+   * treat the buffered text as a complete utterance.
    */
   private async handleTranscription(event: TranscriptionEvent): Promise<void> {
     const { callId } = event;
@@ -351,44 +366,72 @@ export class VoiceCallEventManager {
       return;
     }
 
-    if (!is_final) {
-      // Buffer partial transcription
-      context.partialText = text;
-      this.logger.debug?.(`[EventManager] Partial transcription for ${callId}: ${text.substring(0, 50)}...`);
-    } else {
-      // Final transcription - trigger agent processing
+    if (is_final) {
+      // is_final fires only at call end (flush). Process any remaining buffer.
+      this.clearUtteranceTimer(context);
       const finalText = text || context.partialText;
       context.partialText = "";
-
-      if (!finalText.trim()) {
-        this.logger.debug?.(`[EventManager] Empty final transcription for ${callId}, ignoring`);
-        return;
+      if (finalText.trim()) {
+        this.logger.info(`[EventManager] End-of-call transcription for ${callId}: ${finalText}`);
+        await this.processUtterance(callId, finalText, context);
       }
+      return;
+    }
 
-      this.logger.info(`[EventManager] Final transcription for ${callId}: ${finalText}`);
+    // Partial transcription — buffer non-empty text and reset debounce timer
+    if (text.trim()) {
+      context.partialText = text;
+      this.logger.debug?.(`[EventManager] Partial: ${callId}: ${text.substring(0, 80)}`);
 
-      // Add to conversation history
-      context.history.push({
-        role: "user",
-        content: finalText,
-        timestamp: new Date().toISOString(),
-      });
-
-      // Transition to PROCESSING state
-      this.setConversationState(callId, "PROCESSING");
-
-      // Trigger agent processing callback
-      if (this.onTranscriptionFinal) {
-        try {
-          await this.onTranscriptionFinal(callId, finalText, context);
-        } catch (error) {
-          this.logger.error(
-            `[EventManager] Error processing transcription for ${callId}: ${error instanceof Error ? error.message : String(error)}`
-          );
-          // Reset to LISTENING on error
-          this.setConversationState(callId, "LISTENING");
+      // Reset the utterance debounce timer
+      this.clearUtteranceTimer(context);
+      context.utteranceTimer = setTimeout(() => {
+        const utterance = context.partialText;
+        context.partialText = "";
+        context.utteranceTimer = undefined;
+        if (utterance.trim()) {
+          this.logger.info(`[EventManager] Utterance complete for ${callId}: ${utterance}`);
+          void this.processUtterance(callId, utterance, context);
         }
+      }, VoiceCallEventManager.UTTERANCE_SILENCE_MS);
+    }
+  }
+
+  /**
+   * Process a complete utterance — add to history and trigger agent callback
+   */
+  private async processUtterance(callId: string, text: string, context: ConversationContext): Promise<void> {
+    // Add to conversation history
+    context.history.push({
+      role: "user",
+      content: text,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Transition to PROCESSING state
+    this.setConversationState(callId, "PROCESSING");
+
+    // Trigger agent processing callback
+    if (this.onTranscriptionFinal) {
+      try {
+        await this.onTranscriptionFinal(callId, text, context);
+      } catch (error) {
+        this.logger.error(
+          `[EventManager] Error processing transcription for ${callId}: ${error instanceof Error ? error.message : String(error)}`
+        );
+        // Reset to LISTENING on error
+        this.setConversationState(callId, "LISTENING");
       }
+    }
+  }
+
+  /**
+   * Clear the utterance debounce timer
+   */
+  private clearUtteranceTimer(context: ConversationContext): void {
+    if (context.utteranceTimer) {
+      clearTimeout(context.utteranceTimer);
+      context.utteranceTimer = undefined;
     }
   }
 }
