@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.4] - 2026-02-07
+
+### Summary
+Filter ASR noise hallucinations from utterance detection. The ASR model sends short hallucinated words ("Okay.", "The.", "Oh.") during silence at ~800ms intervals, preventing the debounce timer from ever firing. Now filters noise by requiring a minimum word count (3+ words) before starting the debounce timer, and ignoring short partials that don't grow the text buffer.
+
+### Changed
+- `handleTranscription` now filters noise partials: short text (< 3 words) that doesn't grow the buffer is ignored
+- Debounce timer only starts/resets when partial text reaches 3+ words
+- Buffer preserves the longest text seen — noise can't overwrite substantial speech
+- Added `MIN_UTTERANCE_WORDS` constant (3) for noise threshold
+- Debug logs now show word count per partial and explicit "Noise filtered" messages
+
+### Known Limitations
+- Single-word and two-word responses (e.g., "Yes", "No") won't trigger utterance detection mid-call — only processed at call end via `is_final`
+- Long-term fix requires ASR-side VAD/endpointing improvements
+
 ## [0.4.3] - 2026-02-07
 
 ### Summary
