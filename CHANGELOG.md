@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.2] - 2026-02-07
+
+### Summary
+Fix conversation loop: transcription events from asterisk-api use nested `data` field — plugin was reading root-level `text`/`is_final` (always undefined), so every transcription was treated as empty partial and `onTranscriptionFinal` never fired.
+
+### Fixed
+- `handleTranscription` now extracts `text`/`is_final` from `event.data` (asterisk-api's WebSocket event structure nests payload fields inside `data`)
+- Transcriptions are no longer silently discarded — final transcriptions properly trigger agent processing callback
+
+### Added
+- `call.audio_frame`, `call.audio_capture_started`, `call.audio_capture_stopped`, `call.audio_capture_error` event types
+- Event handler cases for audio capture lifecycle events
+- Suppress debug logging for high-frequency `call.audio_frame` events (was flooding logs at ~50/sec)
+
 ## [0.4.1] - 2026-02-07
 
 ### Summary
