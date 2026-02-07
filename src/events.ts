@@ -277,6 +277,24 @@ export class VoiceCallEventManager {
         }
         break;
 
+      case "call.playback_stream_started":
+        this.logger.debug?.(
+          `[EventManager] Audio stream started on ${callId}`
+        );
+        break;
+
+      case "call.playback_stream_finished":
+        this.logger.debug?.(
+          `[EventManager] Audio stream finished on ${callId}`
+        );
+        break;
+
+      case "call.playback_stream_error":
+        if (callId) {
+          this.logger.error(`[EventManager] Audio stream error on ${callId}: ${event.error}`);
+        }
+        break;
+
       case "call.playback_finished":
         this.logger.debug?.(
           `[EventManager] Playback finished on ${callId}`
