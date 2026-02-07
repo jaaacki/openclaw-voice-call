@@ -50,6 +50,17 @@ const plugin = {
           );
         }
       },
+      onCallEnded: (callId, context) => {
+        const turns = context.history.length;
+        api.logger.info(
+          `[voice-call-freepbx] Call ended: ${callId} — ${turns} conversation turns, last state: ${context.state}`,
+        );
+        if (turns > 0) {
+          api.logger.info(
+            `[voice-call-freepbx] Conversation history for ${callId}: ${JSON.stringify(context.history)}`,
+          );
+        }
+      },
       onTranscriptionFinal: async (callId, text, context) => {
         // Handle final transcription - invoke agent to get response
         api.logger.info(

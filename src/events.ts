@@ -26,6 +26,7 @@ export interface EventManagerOptions {
   };
   onCallEvent?: (event: AsteriskEvent) => void;
   onTranscriptionFinal?: (callId: string, text: string, context: ConversationContext) => Promise<void>;
+  onCallEnded?: (callId: string, context: ConversationContext) => void;
 }
 
 export class VoiceCallEventManager {
@@ -34,6 +35,7 @@ export class VoiceCallEventManager {
   private logger: EventManagerOptions["logger"];
   private onCallEvent?: (event: AsteriskEvent) => void;
   private onTranscriptionFinal?: (callId: string, text: string, context: ConversationContext) => Promise<void>;
+  private onCallEnded?: (callId: string, context: ConversationContext) => void;
   private activeCalls: Map<string, CallStatusResponse> = new Map();
   private conversationContexts: Map<string, ConversationContext> = new Map();
   private isRunning = false;
@@ -43,6 +45,7 @@ export class VoiceCallEventManager {
     this.logger = options.logger;
     this.onCallEvent = options.onCallEvent;
     this.onTranscriptionFinal = options.onTranscriptionFinal;
+    this.onCallEnded = options.onCallEnded;
 
     this.client = new AsteriskApiClient({
       baseUrl: options.config.asteriskApiUrl,
@@ -242,6 +245,12 @@ export class VoiceCallEventManager {
 
       case "call.ended":
         if (callId) {
+          // Signal upstream BEFORE cleanup so context is still available
+          const endedContext = this.conversationContexts.get(callId);
+          if (endedContext) {
+            this.clearUtteranceTimer(endedContext);
+            this.onCallEnded?.(callId, endedContext);
+          }
           this.activeCalls.delete(callId);
           this.cleanupConversation(callId);
         }
