@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.6] - 2026-02-07
+
+### Added
+- `src/events.ts` — VoiceCallEventManager class for WebSocket lifecycle management
+- Singleton pattern: `initEventManager()`, `getEventManager()`, `stopEventManager()`
+- Active call tracking via in-memory Map (populated from snapshot + events)
+- Event dispatcher with `onCallEvent` callback
+- Auto-start WebSocket connection on plugin register
+- Cleanup on plugin unload via `api.onUnload()`
+
+### Changed
+- `index.ts` now initializes and starts the event manager on register
+- Plugin logs significant call events (call.created, call.ended)
+
 ## [0.1.5] - 2026-02-07
 
 ### Added
