@@ -5,8 +5,6 @@
  * @module cli
  */
 
-import type { Command } from "commander";
-
 import { AsteriskApiClient } from "./client.js";
 import type { VoiceCallFreepbxConfig } from "./config.js";
 
@@ -17,7 +15,7 @@ type Logger = {
 };
 
 export function registerVoiceCallCli(params: {
-  program: Command;
+  program: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   config: VoiceCallFreepbxConfig;
   logger: Logger;
 }): void {

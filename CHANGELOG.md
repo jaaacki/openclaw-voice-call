@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.3.0] - 2026-02-07
+
+### Summary
+Complete conversation loop implementation with transcription handling, agent integration, and TTS playback.
+
+### Features
+- ✅ **Transcription Event Handling** - Buffers partial transcriptions and processes final text
+- ✅ **Conversation State Machine** - IDLE → LISTENING → PROCESSING → SPEAKING → IDLE
+- ✅ **Agent Integration** - Automatic agent invocation on final transcription
+- ✅ **TTS Generation** - Text-to-speech via `http://192.168.2.198:8101/v1/audio/speech`
+- ✅ **Audio Playback** - Plays generated speech to caller
+- ✅ **Conversation History** - Tracks full conversation context per call
+- ✅ **New Tool Actions:**
+  - `speak` - Generate TTS and play to caller
+  - `start_listening` - Begin audio capture + transcription
+  - `stop_listening` - Stop audio capture
+- ✅ **Conversation Mode** - Enables continuous back-and-forth dialogue
+- ✅ **State-Aware Processing** - Ignores transcriptions during SPEAKING state (no barge-in)
+
+### Added
+- `src/tts.ts` - TTS integration module with `generateSpeech()` and `cleanupAudioFile()`
+- `ConversationContext` type for per-call state management
+- `ConversationState` type: `"IDLE" | "LISTENING" | "PROCESSING" | "SPEAKING"`
+- `TranscriptionEvent` type for `call.transcription` WebSocket events
+- `ttsApiUrl` config option (default: `http://192.168.2.198:8101`)
+- Conversation state tracking in `VoiceCallEventManager`
+- Partial transcription buffering
+- Automatic cleanup of temporary audio files
+- `onTranscriptionFinal` callback in EventManager
+- Conversation mode toggle per call
+
+### Changed
+- EventManager now handles `call.transcription` events
+- Tool schema extended with `speak`, `start_listening`, `stop_listening` actions
+- Conversation context created on-demand and cleaned up on call end
+- Plugin now auto-responds to transcriptions with agent-generated speech
+
+### Technical Details
+- TTS generates WAV files in `/tmp/` with auto-cleanup after 60s
+- Playback uses existing `POST /calls/:id/play` endpoint with `sound:` prefix
+- State transitions prevent transcription processing during speech playback
+- Conversation history preserved until call ends
+- Agent integration currently uses echo response (TODO: full OpenClaw agent invocation)
+
 ## [0.2.0] - 2026-02-07
 
 ### Summary

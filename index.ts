@@ -50,6 +50,60 @@ const plugin = {
           );
         }
       },
+      onTranscriptionFinal: async (callId, text, context) => {
+        // Handle final transcription - invoke agent to get response
+        api.logger.info(
+          `[voice-call-freepbx] Processing transcription for ${callId}: ${text}`
+        );
+
+        try {
+          // TODO: Invoke OpenClaw agent to get response
+          // For now, use a simple echo response for testing
+          const agentResponse = `I heard you say: ${text}`;
+
+          // Generate TTS and play response
+          const { generateSpeech, cleanupAudioFile } = await import("./src/tts.js");
+
+          const ttsResult = await generateSpeech({
+            baseUrl: config.ttsApiUrl,
+            text: agentResponse,
+            voice: "alloy",
+            format: "wav",
+          });
+
+          // Add assistant message to history
+          context.history.push({
+            role: "assistant",
+            content: agentResponse,
+            timestamp: new Date().toISOString(),
+          });
+
+          // Transition to SPEAKING
+          eventManager.setConversationState(callId, "SPEAKING");
+
+          // Play audio
+          const client = eventManager.getClient();
+          await client.playMedia(callId, `sound:${ttsResult.audioPath}`);
+
+          // Clean up after delay
+          setTimeout(() => {
+            void cleanupAudioFile(ttsResult.audioPath);
+          }, 60000);
+
+          // Transition back to LISTENING
+          eventManager.setConversationState(callId, "LISTENING");
+
+          api.logger.info(
+            `[voice-call-freepbx] Played response to ${callId}: ${agentResponse.substring(0, 50)}...`
+          );
+        } catch (error) {
+          api.logger.error(
+            `[voice-call-freepbx] Failed to process transcription for ${callId}: ${error instanceof Error ? error.message : String(error)}`
+          );
+          // Reset to LISTENING on error
+          eventManager.setConversationState(callId, "LISTENING");
+        }
+      },
     });
 
     // Start WebSocket connection to asterisk-api
@@ -60,6 +114,7 @@ const plugin = {
 
     // Register CLI commands under `voicecall` namespace
     api.registerCli(
+      // @ts-ignore - commander version mismatch between plugin and openclaw peer dependency
       ({ program }) =>
         registerVoiceCallCli({ program, config, logger: api.logger }),
       { commands: ["voicecall"] },
@@ -67,12 +122,6 @@ const plugin = {
 
     // Register Gateway RPC methods (voicecall.*)
     registerVoiceCallRpc(api, config);
-
-    // Handle plugin unload (cleanup)
-    api.onUnload?.(() => {
-      api.logger.info("[voice-call-freepbx] Unloading — stopping event manager");
-      stopEventManager();
-    });
 
     api.logger.info(
       `[voice-call-freepbx] Plugin registered — asterisk-api at ${config.asteriskApiUrl} (WebSocket connected)`,

@@ -112,6 +112,7 @@ export type AsteriskEventType =
   | "call.ended"
   | "call.inbound"
   | "call.answered"
+  | "call.transcription"
   | "bridge.created"
   | "bridge.destroyed";
 
@@ -126,6 +127,38 @@ export interface SnapshotEvent {
   type: "snapshot";
   calls: CallStatusResponse[];
   timestamp: string;
+}
+
+export interface TranscriptionEvent extends AsteriskEvent {
+  type: "call.transcription";
+  callId: string;
+  text: string;
+  is_final: boolean;
+  confidence?: number;
+  timestamp: string;
+}
+
+// ---------------------------------------------------------------------------
+// Conversation state management
+// ---------------------------------------------------------------------------
+
+export type ConversationState = "IDLE" | "LISTENING" | "PROCESSING" | "SPEAKING";
+
+export interface ConversationContext {
+  /** Current conversation state */
+  state: ConversationState;
+
+  /** Buffered partial transcription */
+  partialText: string;
+
+  /** Full conversation history */
+  history: Array<{ role: "user" | "assistant"; content: string; timestamp: string }>;
+
+  /** Timestamp of last state change */
+  lastStateChange: string;
+
+  /** Whether we're in conversation mode (vs one-shot notify) */
+  conversationMode: boolean;
 }
 
 // ---------------------------------------------------------------------------

@@ -11,6 +11,7 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 
 import { getEventManager } from "./events.js";
 import type { VoiceCallFreepbxConfig } from "./config.js";
+import { generateSpeech, cleanupAudioFile } from "./tts.js";
 
 // ---------------------------------------------------------------------------
 // Tool parameter schema (TypeBox union, same pattern as moltbot voice-call)
@@ -36,6 +37,22 @@ const VoiceCallToolSchema = Type.Union([
     action: Type.Literal("speak_to_user"),
     callId: Type.String({ description: "Call ID" }),
     message: Type.String({ description: "Message to speak to the user" }),
+  }),
+  Type.Object({
+    action: Type.Literal("speak"),
+    callId: Type.String({ description: "Call ID" }),
+    text: Type.String({ description: "Text to convert to speech and play" }),
+    voice: Type.Optional(
+      Type.String({ description: "TTS voice (alloy, echo, fable, onyx, nova, shimmer, etc.)" }),
+    ),
+  }),
+  Type.Object({
+    action: Type.Literal("start_listening"),
+    callId: Type.String({ description: "Call ID" }),
+  }),
+  Type.Object({
+    action: Type.Literal("stop_listening"),
+    callId: Type.String({ description: "Call ID" }),
   }),
   Type.Object({
     action: Type.Literal("end_call"),
@@ -192,6 +209,126 @@ export function registerVoiceCallTool(
               count: activeCalls.length,
               calls: activeCalls,
               wsConnected: eventManager.isConnected(),
+            });
+          }
+
+          case "speak": {
+            const callId = String(params.callId || "").trim();
+            const text = String(params.text || "").trim();
+            if (!callId || !text) {
+              throw new Error("callId and text required");
+            }
+
+            // Check if call exists
+            const call = eventManager.getCall(callId);
+            if (!call) {
+              return json({ error: `Call ${callId} not found in active calls` });
+            }
+
+            const voice = String(params.voice || "alloy").trim();
+
+            // Transition to SPEAKING state
+            eventManager.setConversationState(callId, "SPEAKING");
+
+            try {
+              // Generate TTS audio
+              api.logger.info(`[voice-call-freepbx] Generating TTS for ${callId}: ${text.substring(0, 50)}...`);
+              const ttsResult = await generateSpeech({
+                baseUrl: config.ttsApiUrl,
+                text,
+                voice,
+                format: "wav",
+              });
+
+              // Play audio to caller
+              api.logger.info(`[voice-call-freepbx] Playing audio to ${callId}: ${ttsResult.audioPath}`);
+              const playResult = await client.playMedia(callId, `sound:${ttsResult.audioPath}`);
+
+              // Clean up audio file after a delay (give it time to play)
+              setTimeout(() => {
+                void cleanupAudioFile(ttsResult.audioPath);
+              }, 60000); // 60 seconds should be enough for most messages
+
+              // Get conversation context
+              const context = eventManager.getConversationContext(callId);
+
+              // Add to conversation history
+              context.history.push({
+                role: "assistant",
+                content: text,
+                timestamp: new Date().toISOString(),
+              });
+
+              // Transition back to LISTENING if in conversation mode, otherwise IDLE
+              const nextState = context.conversationMode ? "LISTENING" : "IDLE";
+              eventManager.setConversationState(callId, nextState);
+
+              return json({
+                callId,
+                success: true,
+                text,
+                voice,
+                audioPath: ttsResult.audioPath,
+                audioSize: ttsResult.size,
+                playbackId: playResult.playbackId,
+                nextState,
+              });
+            } catch (error) {
+              // Reset to previous state on error
+              const context = eventManager.getConversationContext(callId);
+              const nextState = context.conversationMode ? "LISTENING" : "IDLE";
+              eventManager.setConversationState(callId, nextState);
+              throw error;
+            }
+          }
+
+          case "start_listening": {
+            const callId = String(params.callId || "").trim();
+            if (!callId) throw new Error("callId required");
+
+            // Check if call exists
+            const call = eventManager.getCall(callId);
+            if (!call) {
+              return json({ error: `Call ${callId} not found in active calls` });
+            }
+
+            // Enable conversation mode and transition to LISTENING
+            eventManager.enableConversationMode(callId);
+            eventManager.setConversationState(callId, "LISTENING");
+
+            // Start recording/transcription via asterisk-api
+            // The asterisk-api should automatically start sending transcription events
+            await client.startRecording(callId, { format: "wav", beep: false });
+
+            return json({
+              callId,
+              success: true,
+              state: "LISTENING",
+              message: "Audio capture and transcription started",
+            });
+          }
+
+          case "stop_listening": {
+            const callId = String(params.callId || "").trim();
+            if (!callId) throw new Error("callId required");
+
+            // Check if call exists
+            const call = eventManager.getCall(callId);
+            if (!call) {
+              return json({ error: `Call ${callId} not found in active calls` });
+            }
+
+            // Transition to IDLE
+            eventManager.setConversationState(callId, "IDLE");
+
+            // Note: We don't have a stop recording endpoint yet in the client
+            // This would need to be added to the asterisk-api and client if needed
+
+            return json({
+              callId,
+              success: true,
+              state: "IDLE",
+              message: "Listening stopped",
             });
           }
 

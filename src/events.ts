@@ -10,6 +10,9 @@ import type {
   AsteriskEvent,
   SnapshotEvent,
   CallStatusResponse,
+  TranscriptionEvent,
+  ConversationContext,
+  ConversationState,
 } from "./types.js";
 import type { VoiceCallFreepbxConfig } from "./config.js";
 
@@ -22,6 +25,7 @@ export interface EventManagerOptions {
     debug?: (msg: string) => void;
   };
   onCallEvent?: (event: AsteriskEvent) => void;
+  onTranscriptionFinal?: (callId: string, text: string, context: ConversationContext) => Promise<void>;
 }
 
 export class VoiceCallEventManager {
@@ -29,13 +33,16 @@ export class VoiceCallEventManager {
   private config: VoiceCallFreepbxConfig;
   private logger: EventManagerOptions["logger"];
   private onCallEvent?: (event: AsteriskEvent) => void;
+  private onTranscriptionFinal?: (callId: string, text: string, context: ConversationContext) => Promise<void>;
   private activeCalls: Map<string, CallStatusResponse> = new Map();
+  private conversationContexts: Map<string, ConversationContext> = new Map();
   private isRunning = false;
 
   constructor(options: EventManagerOptions) {
     this.config = options.config;
     this.logger = options.logger;
     this.onCallEvent = options.onCallEvent;
+    this.onTranscriptionFinal = options.onTranscriptionFinal;
 
     this.client = new AsteriskApiClient({
       baseUrl: options.config.asteriskApiUrl,
@@ -126,6 +133,57 @@ export class VoiceCallEventManager {
   }
 
   // -------------------------------------------------------------------------
+  // Conversation state management
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get conversation context for a call (creates if not exists)
+   */
+  getConversationContext(callId: string): ConversationContext {
+    let context = this.conversationContexts.get(callId);
+    if (!context) {
+      context = {
+        state: "IDLE",
+        partialText: "",
+        history: [],
+        lastStateChange: new Date().toISOString(),
+        conversationMode: false,
+      };
+      this.conversationContexts.set(callId, context);
+    }
+    return context;
+  }
+
+  /**
+   * Update conversation state
+   */
+  setConversationState(callId: string, state: ConversationState): void {
+    const context = this.getConversationContext(callId);
+    context.state = state;
+    context.lastStateChange = new Date().toISOString();
+    this.conversationContexts.set(callId, context);
+    this.logger.debug?.(`[EventManager] Call ${callId} state: ${state}`);
+  }
+
+  /**
+   * Enable conversation mode for a call
+   */
+  enableConversationMode(callId: string): void {
+    const context = this.getConversationContext(callId);
+    context.conversationMode = true;
+    this.conversationContexts.set(callId, context);
+    this.logger.info(`[EventManager] Conversation mode enabled for ${callId}`);
+  }
+
+  /**
+   * Clean up conversation context when call ends
+   */
+  private cleanupConversation(callId: string): void {
+    this.conversationContexts.delete(callId);
+    this.logger.debug?.(`[EventManager] Cleaned up conversation context for ${callId}`);
+  }
+
+  // -------------------------------------------------------------------------
   // Event handlers
   // -------------------------------------------------------------------------
 
@@ -178,6 +236,13 @@ export class VoiceCallEventManager {
       case "call.ended":
         if (callId) {
           this.activeCalls.delete(callId);
+          this.cleanupConversation(callId);
+        }
+        break;
+
+      case "call.transcription":
+        if (callId) {
+          void this.handleTranscription(event as TranscriptionEvent);
         }
         break;
 
@@ -202,6 +267,61 @@ export class VoiceCallEventManager {
 
     // Dispatch to external handler
     this.onCallEvent?.(event);
+  }
+
+  /**
+   * Handle transcription events with buffering and finalization
+   */
+  private async handleTranscription(event: TranscriptionEvent): Promise<void> {
+    const { callId, text, is_final } = event;
+
+    const context = this.getConversationContext(callId);
+
+    // Don't process transcriptions while speaking
+    if (context.state === "SPEAKING") {
+      this.logger.debug?.(`[EventManager] Ignoring transcription during SPEAKING state for ${callId}`);
+      return;
+    }
+
+    if (!is_final) {
+      // Buffer partial transcription
+      context.partialText = text;
+      this.logger.debug?.(`[EventManager] Partial transcription for ${callId}: ${text.substring(0, 50)}...`);
+    } else {
+      // Final transcription - trigger agent processing
+      const finalText = text || context.partialText;
+      context.partialText = "";
+
+      if (!finalText.trim()) {
+        this.logger.debug?.(`[EventManager] Empty final transcription for ${callId}, ignoring`);
+        return;
+      }
+
+      this.logger.info(`[EventManager] Final transcription for ${callId}: ${finalText}`);
+
+      // Add to conversation history
+      context.history.push({
+        role: "user",
+        content: finalText,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Transition to PROCESSING state
+      this.setConversationState(callId, "PROCESSING");
+
+      // Trigger agent processing callback
+      if (this.onTranscriptionFinal) {
+        try {
+          await this.onTranscriptionFinal(callId, finalText, context);
+        } catch (error) {
+          this.logger.error(
+            `[EventManager] Error processing transcription for ${callId}: ${error instanceof Error ? error.message : String(error)}`
+          );
+          // Reset to LISTENING on error
+          this.setConversationState(callId, "LISTENING");
+        }
+      }
+    }
   }
 }
 

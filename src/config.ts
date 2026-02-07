@@ -13,6 +13,9 @@ export const VoiceCallFreepbxConfigSchema = z.object({
   /** Optional API key for authenticating with asterisk-api */
   asteriskApiKey: z.string().optional(),
 
+  /** TTS API base URL for speech synthesis */
+  ttsApiUrl: z.string().url().default("http://192.168.2.198:8101"),
+
   /** Outbound caller ID in E.164 format */
   fromNumber: z.string().regex(/^\+[1-9]\d{1,14}$/, "Must be E.164 format"),
 
