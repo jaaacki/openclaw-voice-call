@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.0] - 2026-02-07
+
+### Summary
+First complete release with WebSocket event streaming and outbound call support.
+
+### Features
+- ✅ WebSocket connection to asterisk-api `/events`
+- ✅ Real-time call state tracking
+- ✅ Outbound calls via `voice_call` tool
+- ✅ Trunk pattern configuration
+- ✅ CLI commands (`voicecall call`, `list`, `status`, `end`)
+- ✅ RPC methods (`voicecall.initiate`, etc.)
+- ✅ Full documentation (README.md, TESTS.md)
+
+### Breaking Changes
+- `initiate_call` now requires `to` (phone number) instead of optional endpoint override
+
 ## [0.1.8] - 2026-02-07
 
 ### Added

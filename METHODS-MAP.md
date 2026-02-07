@@ -12,7 +12,8 @@ Actions registered via `registerTool()` in `tool.ts` for LLM agent use.
 | `continue_call` | `POST /calls/:id/play` | `client.playMedia()` | V1 (placeholder — plays `sound:hello-world`, needs TTS) |
 | `speak_to_user` | `POST /calls/:id/play` | `client.playMedia()` | V1 (placeholder — plays `sound:hello-world`, needs TTS) |
 | `end_call` | `DELETE /calls/:id` | `client.hangup()` | V1 |
-| `get_status` | `GET /calls/:id` | `client.getCall()` | V1 |
+| `get_status` | `GET /calls/:id` | `client.getCall()` | V1 ✅ (cache-first) |
+| `list_calls` | — (in-memory) | `eventManager.getActiveCalls()` | V1 ✅ |
 | `answer_inbound` | — | — | V2 — accept/greet inbound call |
 | `listen` | — | — | V2 — start listening for caller speech (STT) |
 | `transfer_call` | `POST /calls/:id/transfer` | — | V2 — not in client yet |
@@ -45,7 +46,7 @@ Registered via `registerCli()` in `cli.ts`.
 | `voicecall speak` | `POST /calls/:id/play` | `client.playMedia()` | V1 |
 | `voicecall list` | `GET /calls` | `client.listCalls()` | V1 |
 | `voicecall health` | `GET /health` | `client.health()` | V1 |
-| `voicecall listen` | `WS /events` | `client.connectEvents()` | V1 — **not implemented yet** |
+| `voicecall listen` | `WS /events` | `client.connectEvents()` | V1 ✅ (via EventManager) |
 
 ## REST Client — `AsteriskApiClient`
 
@@ -129,16 +130,16 @@ Caller speaks → External Media WS → audio frames
 
 ## Event Handling
 
-### V1 — WS Event Listener (should be V1, not implemented yet)
+### V1 — WS Event Listener ✅ IMPLEMENTED
 
-The plugin should connect to asterisk-api's WS `/events` stream on startup and stay connected. This gives real-time awareness of all call events without polling.
+The plugin connects to asterisk-api's WS `/events` stream on startup and stays connected. This gives real-time awareness of all call events without polling.
 
 | Component | Description | Status |
 |-----------|-------------|--------|
-| WS connection | Connect to `ws://asterisk-api:3456/events`, auto-reconnect | V1 — **not implemented** |
-| Event router | Dispatch events by type (`call.created`, `call.state_changed`, `call.dtmf`, `call.ended`, etc.) | V1 — **not implemented** |
-| Snapshot sync | On connect, receive `snapshot` with all active calls | V1 — **not implemented** |
-| Webhook handler | HTTP POST receiver at `serve.port` / `serve.path` | V1 — config ready, **not implemented** |
+| WS connection | Connect to `ws://asterisk-api:3456/events`, auto-reconnect | V1 ✅ |
+| Event router | Dispatch events by type (`call.created`, `call.state_changed`, `call.dtmf`, `call.ended`, etc.) | V1 ✅ |
+| Snapshot sync | On connect, receive `snapshot` with all active calls | V1 ✅ |
+| Webhook handler | HTTP POST receiver at `serve.port` / `serve.path` | V2 — not implemented |
 
 **What V1 WS gives us:**
 - Know instantly when outbound call is answered/ended (no polling)
