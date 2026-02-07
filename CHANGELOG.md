@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.7] - 2026-02-07
+
+### Added
+- `list_calls` action to show all active calls from WebSocket cache
+- Tool now uses EventManager for client access and call state
+- Shows `wsConnected` status in responses
+- Cache-first lookup for `get_status` (falls back to REST API)
+
+### Changed
+- `initiate_call` now takes `to` (phone number) as required param instead of optional `to` endpoint
+- Endpoint is auto-built from phone number + defaultEndpoint config
+- Tool validates call existence before `continue_call` and `speak_to_user`
+- Better error messages when calls not found
+
 ## [0.1.6] - 2026-02-07
 
 ### Added
