@@ -203,9 +203,12 @@ export class VoiceCallEventManager {
   private handleEvent(event: AsteriskEvent): void {
     const callId = event.callId;
 
-    this.logger.debug?.(
-      `[EventManager] Event: ${event.type}${callId ? ` (${callId})` : ""}`
-    );
+    // Skip debug log for high-frequency audio frame events
+    if (event.type !== "call.audio_frame") {
+      this.logger.debug?.(
+        `[EventManager] Event: ${event.type}${callId ? ` (${callId})` : ""}`
+      );
+    }
 
     switch (event.type) {
       case "call.created":
@@ -306,6 +309,24 @@ export class VoiceCallEventManager {
           `[EventManager] Recording finished on ${callId}`
         );
         break;
+
+      case "call.audio_capture_started":
+        this.logger.info(`[EventManager] Audio capture started on ${callId}`);
+        break;
+
+      case "call.audio_capture_stopped":
+        this.logger.info(`[EventManager] Audio capture stopped on ${callId}`);
+        break;
+
+      case "call.audio_capture_error":
+        if (callId) {
+          this.logger.error(`[EventManager] Audio capture error on ${callId}: ${event.error}`);
+        }
+        break;
+
+      case "call.audio_frame":
+        // Silently ignore high-frequency audio frames to avoid log spam
+        break;
     }
 
     // Dispatch to external handler
@@ -316,8 +337,11 @@ export class VoiceCallEventManager {
    * Handle transcription events with buffering and finalization
    */
   private async handleTranscription(event: TranscriptionEvent): Promise<void> {
-    const { callId, is_final } = event;
-    const text = event.text ?? "";
+    const { callId } = event;
+    // asterisk-api nests transcription fields inside event.data
+    const data = (event as unknown as { data?: { text?: string; is_final?: boolean; is_partial?: boolean } }).data;
+    const text = data?.text ?? event.text ?? "";
+    const is_final = data?.is_final ?? event.is_final ?? false;
 
     const context = this.getConversationContext(callId);
 
