@@ -3,7 +3,6 @@
   "name": "Voice Call (FreePBX/Asterisk)",
   "configSchema": {
     "type": "object",
-    "additionalProperties": false,
-    "properties": {}
+    "additionalProperties": true
   }
 }

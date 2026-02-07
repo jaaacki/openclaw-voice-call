@@ -15,6 +15,7 @@ import type {
   RecordingResponse,
   HangupResponse,
   DtmfResponse,
+  SpeakResponse,
   AsteriskEvent,
   SnapshotEvent,
   EventConnectionOptions,
@@ -163,6 +164,19 @@ export class AsteriskApiClient {
     return this.request<HangupResponse>(
       "DELETE",
       `/calls/${encodeURIComponent(callId)}`,
+    );
+  }
+
+  /** POST /calls/:id/speak — synthesize TTS and play into a call */
+  async speak(
+    callId: string,
+    text: string,
+    options?: { voice?: string; language?: string; speed?: number },
+  ): Promise<SpeakResponse> {
+    return this.request<SpeakResponse>(
+      "POST",
+      `/calls/${encodeURIComponent(callId)}/speak`,
+      { text, ...options },
     );
   }
 

@@ -131,17 +131,18 @@ export function registerVoiceCallCli(params: {
   // -------------------------------------------------------------------------
   root
     .command("speak")
-    .description("Play audio/message into an active call")
+    .description("Speak text into an active call via server-side TTS")
     .requiredOption("--call-id <id>", "Call ID")
-    .requiredOption("--message <msg>", "Message or media URI to play")
-    .action(async (options: { callId: string; message: string }) => {
+    .requiredOption("--message <msg>", "Text to speak")
+    .option("--voice <voice>", "TTS voice (vivian, serena, dylan, etc.)")
+    .option("--language <lang>", "TTS language (default: English)")
+    .action(async (options: { callId: string; message: string; voice?: string; language?: string }) => {
       try {
         const client = createClient();
-        // For now, play as media URI; TTS pipeline comes later
-        const result = await client.playMedia(
-          options.callId,
-          options.message,
-        );
+        const result = await client.speak(options.callId, options.message, {
+          voice: options.voice,
+          language: options.language,
+        });
         // eslint-disable-next-line no-console
         console.log(JSON.stringify(result, null, 2));
       } catch (err) {

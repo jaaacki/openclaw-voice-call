@@ -61,16 +61,6 @@ const plugin = {
           // For now, use a simple echo response for testing
           const agentResponse = `I heard you say: ${text}`;
 
-          // Generate TTS and play response
-          const { generateSpeech, cleanupAudioFile } = await import("./src/tts.js");
-
-          const ttsResult = await generateSpeech({
-            baseUrl: config.ttsApiUrl,
-            text: agentResponse,
-            voice: "alloy",
-            format: "wav",
-          });
-
           // Add assistant message to history
           context.history.push({
             role: "assistant",
@@ -78,23 +68,13 @@ const plugin = {
             timestamp: new Date().toISOString(),
           });
 
-          // Transition to SPEAKING
-          eventManager.setConversationState(callId, "SPEAKING");
-
-          // Play audio
+          // Server-side TTS — speak() blocks until playback finishes
+          // State transitions handled by call.speak_started/finished events
           const client = eventManager.getClient();
-          await client.playMedia(callId, `sound:${ttsResult.audioPath}`);
-
-          // Clean up after delay
-          setTimeout(() => {
-            void cleanupAudioFile(ttsResult.audioPath);
-          }, 60000);
-
-          // Transition back to LISTENING
-          eventManager.setConversationState(callId, "LISTENING");
+          await client.speak(callId, agentResponse);
 
           api.logger.info(
-            `[voice-call-freepbx] Played response to ${callId}: ${agentResponse.substring(0, 50)}...`
+            `[voice-call-freepbx] Spoke response to ${callId}: ${agentResponse.substring(0, 50)}...`
           );
         } catch (error) {
           api.logger.error(
