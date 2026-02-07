@@ -1,6 +1,7 @@
 /**
  * Asterisk-API REST Client
  * Wraps fetch calls to the asterisk-api bridge service endpoints
+ * Also provides WebSocket connection to /events for real-time updates
  *
  * @module client
  */
@@ -14,6 +15,9 @@ import type {
   RecordingResponse,
   HangupResponse,
   DtmfResponse,
+  AsteriskEvent,
+  SnapshotEvent,
+  EventConnectionOptions,
 } from "./types.js";
 
 export interface AsteriskApiClientOptions {
@@ -27,6 +31,10 @@ export interface AsteriskApiClientOptions {
 export class AsteriskApiClient {
   private baseUrl: string;
   private apiKey?: string;
+  private ws: WebSocket | null = null;
+  private wsOptions: EventConnectionOptions | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private isClosing = false;
 
   constructor({ baseUrl, apiKey }: AsteriskApiClientOptions) {
     // Strip trailing slash
@@ -149,5 +157,105 @@ export class AsteriskApiClient {
       `/calls/${encodeURIComponent(callId)}/dtmf`,
       { dtmf },
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // WebSocket event connection
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get the WebSocket URL for events
+   */
+  private getWsUrl(): string {
+    // Convert http(s) to ws(s)
+    const wsUrl = this.baseUrl.replace(/^http/, "ws");
+    return `${wsUrl}/events`;
+  }
+
+  /**
+   * Connect to the asterisk-api WebSocket event stream
+   * Receives real-time call events and an initial snapshot of active calls
+   */
+  connectEvents(options: EventConnectionOptions = {}): void {
+    if (this.ws) {
+      console.warn("[AsteriskApiClient] Already connected to events, disconnecting first");
+      this.disconnectEvents();
+    }
+
+    this.wsOptions = options;
+    this.isClosing = false;
+
+    const wsUrl = this.getWsUrl();
+    console.log(`[AsteriskApiClient] Connecting to ${wsUrl}`);
+
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      console.log("[AsteriskApiClient] WebSocket connected");
+      options.onConnect?.();
+    };
+
+    this.ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data as string);
+
+        if (data.type === "snapshot") {
+          options.onSnapshot?.(data as SnapshotEvent);
+        } else {
+          options.onEvent?.(data as AsteriskEvent);
+        }
+      } catch (err) {
+        console.error("[AsteriskApiClient] Failed to parse event:", err);
+      }
+    };
+
+    this.ws.onerror = (event) => {
+      console.error("[AsteriskApiClient] WebSocket error:", event);
+      options.onError?.(new Error("WebSocket error"));
+    };
+
+    this.ws.onclose = (event) => {
+      console.log(
+        `[AsteriskApiClient] WebSocket closed: ${event.code} ${event.reason}`
+      );
+      options.onDisconnect?.(event.code, event.reason);
+
+      this.ws = null;
+
+      // Auto-reconnect unless intentionally closed
+      if (!this.isClosing && (options.autoReconnect ?? true)) {
+        const delay = options.reconnectDelay ?? 3000;
+        console.log(`[AsteriskApiClient] Reconnecting in ${delay}ms...`);
+        this.reconnectTimer = setTimeout(() => {
+          this.connectEvents(options);
+        }, delay);
+      }
+    };
+  }
+
+  /**
+   * Disconnect from the WebSocket event stream
+   */
+  disconnectEvents(): void {
+    this.isClosing = true;
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    if (this.ws) {
+      this.ws.close(1000, "Client disconnect");
+      this.ws = null;
+    }
+
+    this.wsOptions = null;
+  }
+
+  /**
+   * Check if WebSocket is connected
+   */
+  isEventsConnected(): boolean {
+    return this.ws?.readyState === WebSocket.OPEN;
   }
 }
