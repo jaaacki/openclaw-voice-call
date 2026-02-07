@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.1] - 2026-02-07
+
+### Fixed
+- `start_listening` now calls `POST /calls/:id/audio/start` (live ASR pipeline) instead of `POST /calls/:id/record` (file-based recording)
+- `stop_listening` now calls `POST /calls/:id/audio/stop` to tear down audio capture and ASR session
+
+### Added
+- `AsteriskApiClient.startAudioCapture()` — starts Snoop → ExternalMedia → ASR WebSocket pipeline
+- `AsteriskApiClient.stopAudioCapture()` — stops audio capture and cleans up resources
+
 ## [0.3.0] - 2026-02-07
 
 ### Summary

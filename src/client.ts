@@ -142,6 +142,22 @@ export class AsteriskApiClient {
     );
   }
 
+  /** POST /calls/:id/audio/start — start live audio capture + ASR pipeline */
+  async startAudioCapture(callId: string): Promise<unknown> {
+    return this.request<unknown>(
+      "POST",
+      `/calls/${encodeURIComponent(callId)}/audio/start`,
+    );
+  }
+
+  /** POST /calls/:id/audio/stop — stop audio capture + ASR session */
+  async stopAudioCapture(callId: string): Promise<void> {
+    await this.request<unknown>(
+      "POST",
+      `/calls/${encodeURIComponent(callId)}/audio/stop`,
+    );
+  }
+
   /** DELETE /calls/:id — hang up a call */
   async hangup(callId: string): Promise<HangupResponse> {
     return this.request<HangupResponse>(
