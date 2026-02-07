@@ -124,6 +124,9 @@ export type AsteriskEventType =
   | "call.speak_started"
   | "call.speak_finished"
   | "call.speak_error"
+  | "call.playback_stream_started"
+  | "call.playback_stream_finished"
+  | "call.playback_stream_error"
   | "bridge.created"
   | "bridge.destroyed";
 

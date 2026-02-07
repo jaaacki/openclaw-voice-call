@@ -5,7 +5,7 @@ Voice calling via Asterisk/FreePBX using ARI and the asterisk-api bridge.
 ## Features
 
 - **Outbound calls** — Initiate calls to phone numbers via OpenClaw agent
-- **Server-side TTS** — Text-to-speech via asterisk-api `POST /calls/:id/speak` (Qwen3-TTS)
+- **Server-side TTS** — Text-to-speech via asterisk-api `POST /calls/:id/speak` (Qwen3-TTS, streamed via ExternalMedia)
 - **Conversation loop** — Transcription -> agent -> TTS -> playback cycle
 - **WebSocket events** — Real-time call state via asterisk-api `/events`
 - **Allowlist** — Restrict calls to approved numbers (at asterisk-api level)
@@ -30,7 +30,7 @@ PSTN / Phone
 ## Prerequisites
 
 1. **FreePBX/Asterisk** with ARI enabled
-2. **asterisk-api v0.3.0+** bridge service running ([jaaacki/asterisk-api](https://github.com/jaaacki/asterisk-api)) — includes server-side TTS
+2. **asterisk-api v0.3.1+** bridge service running ([jaaacki/asterisk-api](https://github.com/jaaacki/asterisk-api)) — streaming TTS via ExternalMedia (no shared filesystem needed)
 3. **OpenClaw** installed
 
 ## Installation
@@ -75,7 +75,7 @@ PSTN / Phone
 | `inboundPolicy` | No | `disabled` or `allowlist` (default: `disabled`) |
 | `allowFrom` | No | Array of allowed inbound caller IDs |
 
-> **Note:** TTS configuration (`ttsApiUrl`, voice, language) is managed on the **asterisk-api** side, not in this plugin. See asterisk-api `.env` for `TTS_URL`, `TTS_DEFAULT_VOICE`, etc.
+> **Note:** TTS configuration (`ttsApiUrl`, voice, language) is managed on the **asterisk-api** side, not in this plugin. See asterisk-api `.env` for `TTS_URL`, `TTS_DEFAULT_VOICE`, etc. TTS audio is streamed to the call via ExternalMedia WebSocket — no shared filesystem or bind-mounts required between asterisk-api and Asterisk.
 
 ### Outbound Trunk Pattern
 

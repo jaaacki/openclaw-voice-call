@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1] - 2026-02-07
+
+### Summary
+Support asterisk-api v0.3.1 streaming TTS via ExternalMedia WebSocket.
+
+### Added
+- `call.playback_stream_started`, `call.playback_stream_finished`, `call.playback_stream_error` event types and handlers
+
+### Changed
+- Updated docs to reflect streaming TTS architecture (no shared filesystem needed)
+- Requires asterisk-api v0.3.1+
+
 ## [0.4.0] - 2026-02-07
 
 ### Summary
