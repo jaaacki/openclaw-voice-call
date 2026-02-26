@@ -99,19 +99,34 @@ export class AsteriskApiClient {
     callerId: string,
     timeout?: number,
   ): Promise<OriginateResponse> {
-    return this.request<OriginateResponse>("POST", "/calls", {
-      endpoint,
-      callerId,
-      ...(timeout != null ? { timeout } : {}),
-    });
+    // asterisk-api returns { call: { id, channelId, state, ... } }
+    const resp = await this.request<{ call: { id: string; channelId: string; state: string } }>(
+      "POST", "/calls", {
+        endpoint,
+        callerId,
+        ...(timeout != null ? { timeout } : {}),
+      }
+    );
+    return {
+      callId: resp.call.id,
+      channel: resp.call.channelId,
+      status: resp.call.state,
+    };
   }
 
   /** GET /calls/:id — get current call status */
   async getCall(callId: string): Promise<CallStatusResponse> {
-    return this.request<CallStatusResponse>(
+    const resp = await this.request<{ call: { id: string; channelId: string; state: string; callerNumber?: string; calleeNumber?: string } }>(
       "GET",
       `/calls/${encodeURIComponent(callId)}`,
     );
+    return {
+      callId: resp.call.id,
+      status: resp.call.state,
+      channel: resp.call.channelId,
+      caller: resp.call.callerNumber,
+      callee: resp.call.calleeNumber,
+    };
   }
 
   /** GET /calls — list all active calls */
@@ -242,6 +257,17 @@ export class AsteriskApiClient {
     this.ws.onerror = (event) => {
       console.error("[AsteriskApiClient] WebSocket error:", event);
       options.onError?.(new Error("WebSocket error"));
+      // In Node.js native WebSocket, onclose may not fire after a connection-refused
+      // error. Ensure the reconnect loop continues by scheduling reconnect here too.
+      if (!this.isClosing && (options.autoReconnect ?? true) && !this.reconnectTimer) {
+        this.ws = null;
+        const delay = options.reconnectDelay ?? 3000;
+        console.log(`[AsteriskApiClient] Reconnecting in ${delay}ms...`);
+        this.reconnectTimer = setTimeout(() => {
+          this.reconnectTimer = null;
+          this.connectEvents(options);
+        }, delay);
+      }
     };
 
     this.ws.onclose = (event) => {

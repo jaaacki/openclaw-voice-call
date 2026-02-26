@@ -61,44 +61,25 @@ const plugin = {
           );
         }
       },
-      onTranscriptionFinal: async (callId, text, context) => {
-        // Handle final transcription - invoke agent to get response
+      onTranscriptionFinal: async (callId, text, _context) => {
+        // This fallback fires only when no start_listening waiter is registered.
+        // The start_listening tool action captures transcriptions via a one-shot
+        // waiter and returns the text directly to the agent as a tool result.
         api.logger.info(
-          `[voice-call-freepbx] Processing transcription for ${callId}: ${text}`
+          `[voice-call-freepbx] Unhandled transcription for ${callId}: ${text}`
         );
-
-        try {
-          // TODO: Invoke OpenClaw agent to get response
-          // For now, use a simple echo response for testing
-          const agentResponse = `I heard you say: ${text}`;
-
-          // Add assistant message to history
-          context.history.push({
-            role: "assistant",
-            content: agentResponse,
-            timestamp: new Date().toISOString(),
-          });
-
-          // Server-side TTS — speak() blocks until playback finishes
-          // State transitions handled by call.speak_started/finished events
-          const client = eventManager.getClient();
-          await client.speak(callId, agentResponse);
-
-          api.logger.info(
-            `[voice-call-freepbx] Spoke response to ${callId}: ${agentResponse.substring(0, 50)}...`
-          );
-        } catch (error) {
-          api.logger.error(
-            `[voice-call-freepbx] Failed to process transcription for ${callId}: ${error instanceof Error ? error.message : String(error)}`
-          );
-          // Reset to LISTENING on error
-          eventManager.setConversationState(callId, "LISTENING");
-        }
       },
     });
 
-    // Start WebSocket connection to asterisk-api
-    eventManager.start();
+    // Only connect to asterisk-api when the gateway is running as a daemon.
+    // Starting the WebSocket unconditionally keeps the Node.js event loop alive
+    // and causes the CLI to hang after every command.
+    api.on("gateway_start", () => {
+      eventManager.start();
+    });
+    api.on("gateway_stop", () => {
+      eventManager.stop();
+    });
 
     // Register voice_call tool for LLM agent use
     registerVoiceCallTool(api, config);

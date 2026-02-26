@@ -40,6 +40,16 @@ export class VoiceCallEventManager {
   private conversationContexts: Map<string, ConversationContext> = new Map();
   private isRunning = false;
 
+  /**
+   * Per-call transcription waiters registered by the start_listening tool action.
+   * When set, the next utterance for that callId resolves this waiter instead of
+   * going through the global onTranscriptionFinal callback.
+   */
+  private transcriptionWaiters: Map<string, {
+    resolve: (text: string) => void;
+    reject: (err: Error) => void;
+  }> = new Map();
+
   constructor(options: EventManagerOptions) {
     this.config = options.config;
     this.logger = options.logger;
@@ -179,6 +189,32 @@ export class VoiceCallEventManager {
   }
 
   /**
+   * Register a one-shot waiter for the next utterance on this call.
+   * Used by the start_listening tool to block until speech is detected.
+   * The waiter is consumed on first utterance or rejected on call end/stop.
+   */
+  setTranscriptionWaiter(
+    callId: string,
+    resolve: (text: string) => void,
+    reject: (err: Error) => void,
+  ): void {
+    // Reject any existing waiter for this call before replacing
+    this.rejectTranscriptionWaiter(callId, new Error("Replaced by new start_listening call"));
+    this.transcriptionWaiters.set(callId, { resolve, reject });
+  }
+
+  /**
+   * Reject and remove any pending transcription waiter for this call.
+   */
+  rejectTranscriptionWaiter(callId: string, error: Error): void {
+    const waiter = this.transcriptionWaiters.get(callId);
+    if (waiter) {
+      this.transcriptionWaiters.delete(callId);
+      waiter.reject(error);
+    }
+  }
+
+  /**
    * Clean up conversation context when call ends
    */
   private cleanupConversation(callId: string): void {
@@ -187,6 +223,8 @@ export class VoiceCallEventManager {
       this.clearUtteranceTimer(context);
     }
     this.conversationContexts.delete(callId);
+    // Reject any pending start_listening waiter so it doesn't hang forever
+    this.rejectTranscriptionWaiter(callId, new Error("Call ended"));
     this.logger.debug?.(`[EventManager] Cleaned up conversation context for ${callId}`);
   }
 
@@ -200,9 +238,18 @@ export class VoiceCallEventManager {
     );
 
     this.activeCalls.clear();
-    for (const call of snapshot.calls ?? []) {
-      if (call.callId) {
-        this.activeCalls.set(call.callId, call);
+    for (const raw of snapshot.calls ?? []) {
+      // Server sends CallRecord with `id` and `state`; client type uses `callId` and `status`
+      const r = raw as unknown as Record<string, unknown>;
+      const callId = (r.callId ?? r.id) as string | undefined;
+      if (callId) {
+        this.activeCalls.set(callId, {
+          callId,
+          status: (r.status ?? r.state) as string ?? "active",
+          channel: r.channelId as string | undefined,
+          caller: r.callerNumber as string | undefined,
+          callee: r.calleeNumber as string | undefined,
+        });
       }
     }
   }
@@ -220,28 +267,36 @@ export class VoiceCallEventManager {
     switch (event.type) {
       case "call.created":
       case "call.ready":
-      case "call.inbound":
+      case "call.inbound": {
         if (callId) {
+          const d = event.data as Record<string, unknown> | undefined;
           this.activeCalls.set(callId, {
             callId,
-            status: event.state as string ?? "active",
-            channel: event.channelId as string,
-            caller: event.callerNumber as string,
-            callee: event.calleeNumber as string,
+            status: d?.state as string ?? "active",
+            channel: (d?.channelId ?? event.channelId) as string,
+            caller: (d?.callerNumber ?? event.callerNumber) as string,
+            callee: (d?.calleeNumber ?? event.calleeNumber) as string,
           });
         }
         break;
+      }
 
       case "call.state_changed":
-      case "call.answered":
+      case "call.answered": {
         if (callId) {
+          const d = event.data as Record<string, unknown> | undefined;
+          const newStatus = d?.state as string | undefined;
           const existing = this.activeCalls.get(callId);
           if (existing) {
-            existing.status = event.state as string ?? existing.status;
+            existing.status = newStatus ?? existing.status;
             this.activeCalls.set(callId, existing);
+          } else if (newStatus) {
+            // Call not yet in activeCalls (missed call.created) — create entry
+            this.activeCalls.set(callId, { callId, status: newStatus });
           }
         }
         break;
+      }
 
       case "call.ended":
         if (callId) {
@@ -347,7 +402,7 @@ export class VoiceCallEventManager {
   }
 
   /** Silence duration (ms) after last partial before treating as complete utterance */
-  private static readonly UTTERANCE_SILENCE_MS = 1500;
+  private static readonly UTTERANCE_SILENCE_MS = 500;
 
   /** Minimum word count to consider a partial as real speech (filters ASR noise) */
   private static readonly MIN_UTTERANCE_WORDS = 3;
@@ -444,6 +499,14 @@ export class VoiceCallEventManager {
 
     // Transition to PROCESSING state
     this.setConversationState(callId, "PROCESSING");
+
+    // One-shot waiter registered by start_listening tool: deliver utterance as tool result
+    const waiter = this.transcriptionWaiters.get(callId);
+    if (waiter) {
+      this.transcriptionWaiters.delete(callId);
+      waiter.resolve(text);
+      return;
+    }
 
     // Trigger agent processing callback
     if (this.onTranscriptionFinal) {
